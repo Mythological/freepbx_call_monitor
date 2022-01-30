@@ -1,5 +1,4 @@
 # Miscellanious Settings
-
 extensions = ['201'] # Extensions to Monitor seperated by commas
 pbx_mysql_password = 'YOUR FREEPBXUSER MYSQL PASSWORD HERE' # freepbxuser MySQL Password
 check_delay = 60 # The amount of time to delay checking the database, in Seconds

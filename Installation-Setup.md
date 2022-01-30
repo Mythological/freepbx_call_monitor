@@ -1,5 +1,5 @@
 ### Installation Steps
-1) Obtain MySQL Password for freepbxuser from MySQL
+1) [Obtain MySQL Password for freepbxuser from MySQL](Installation-Setup.md#get-freepbxuser-mysql-password)
 2) Obtain API Keys/Webhook URL 
 3) Install needed packages, clone Repo and install library dependencies
 4) Configure the script

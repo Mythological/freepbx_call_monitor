@@ -1,9 +1,55 @@
+#################################################################################
+
+# FreePBX Missed Call Monitor
+# Developed by: Jeff Lehman, N8ACL
+# Current Version: 01302022
+# https://github.com/n8acl/freepbx-call-monitor
+
+# Questions? Comments? Suggestions? Contact me one of the following ways:
+# E-mail: n8acl@qsl.net
+# Twitter: @n8acl
+# Discord: Ravendos#7364
+# Mastodon: @n8acl@mastodon.radio
+# Website: https://www.qsl.net/n8acl
+
+###################   DO NOT CHANGE BELOW   #########################
+
 #############################
 # Import Libraries
 import config as cfg
 import subprocess
+import http.client, urllib
 from time import sleep
-from discord_webhook import DiscordWebhook, DiscordEmbed
+
+if cfg.telegram:
+    try: 
+        import telegram
+    except ImportError:
+        exit('This script requires the python-telegram-bot module\nInstall with: pip3 install python-telegram-bot')
+
+if cfg.discord:
+    try:
+        from discord_webhook import DiscordWebhook, DiscordEmbed
+    except ImportError:
+        exit('This script requires the discord_webhook module\nInstall with: pip3 install discord_webhook')
+
+if cfg.mattermost:
+    try:
+        from matterhook import Webhook
+    except ImportError:
+        exit('This script requires the matterhook module\nInstall with: pip3 install matterhook')
+
+if cfg.slack:
+    try:
+        import requests
+    except ImportError:
+        exit('This script requires the requests module\nInstall with: pip3 install requests')
+
+    try:
+        import json
+    except ImportError:
+        exit('Error Loading json module.')
+
 
 #############################
 # Define Variables
@@ -11,17 +57,56 @@ from discord_webhook import DiscordWebhook, DiscordEmbed
 linefeed = "\r\n"
 call_log = []
 last_id = ''
+message = ''
 
 #############################
 # Define Functions
 
-def send_discord (title, msg):
-    webhook = DiscordWebhook(url=cfg.discord_wh["pbx"])
+def send_telegram(msg, bot_token, chat_id):
+    # Create Telegram Object
+    bot = telegram.Bot(token=bot_token)
 
-    embed = DiscordEmbed(title=title, description=msg)
-    webhook.add_embed(embed)
+    # Send message to Telegram
+    bot.sendMessage(chat_id=chat_id, text=msg)
 
+def send_discord(msg,wh_url, title, send_as_embed):
+    # Check to send as either an embed or as a regular Text Message
+    if send_as_embed:
+        webhook = DiscordWebhook(url=wh_url)
+
+        embed = DiscordEmbed(title=title, description=msg)
+        webhook.add_embed(embed)
+    else:
+        webhook = DiscordWebhook(url=wh_url, content=msg)
+
+    # Send Message to Discord
     response = webhook.execute() 
+
+def send_mattermost(msg,wh_url, api_key):
+    # Create Bot Object
+    mm_bot = Webhook(mattermostwh["wh_url"], mattermostwh["apikey"])
+    
+    # Send to Mattermost
+    mm_bot.send(msg)  
+
+def send_pushover(msg, pushover_token, pushover_userkey):
+    # Send to Pushover
+    connn = http.client.HTTPSConnection("api.pushover.net:443")
+    connn.request("POST", "/1/messages.json",
+        urllib.parse.urlencode({
+        "token": pushover_token,
+        "user": pushover_userkey,
+        "message": msg,
+        }), { "Content-type": "application/x-www-form-urlencoded" })
+    connn.getresponse()
+
+def send_slack(msg, wh_url):
+
+ 
+    response = requests.post(
+        wh_url, data=json.dumps(msg),
+        headers={'Content-Type': 'application/json'}
+    )
 
 #############################
 # Main Program
@@ -36,8 +121,13 @@ try:
         lastapp AS LastApp,
         uniqueid as ID 
         from cdr 
-        where disposition = 'NO ANSWER'
-        or disposition = 'BUSY'
+        where dst in (
+        """
+
+        cmd = cmd + ",".join(cfg.extensions)
+
+        cmd = cmd + """
+        )
         ORDER BY calldate DESC
         limit 1"  | mysql -u freepbxuser -p"""
 
@@ -48,18 +138,37 @@ try:
         call_log = subprocess.check_output(cmd, shell=True, universal_newlines=True).replace('\t',',').split(',')
 
         if last_id != call_log[4]:
-            message = "TimeStamp: " + call_log[0] + linefeed
-            message = message + "Caller: " + call_log[1] + linefeed
-            message = message + "Status: " + call_log[2] + linefeed
-            # message = message + "Last App: " + call_log[3]
+            if call_log[2] == 'NO ANSWER':
+                message = "TimeStamp: " + call_log[0] + linefeed
+                message = message + "Caller: " + call_log[1] + linefeed
+                message = message + "Status: " + call_log[2] + linefeed
+                # message = message + "Last App: " + call_log[3]
+            elif call_log[2] == 'ANSWERED' and call_log[3] == 'VOICEMAIL':
+                message = "TimeStamp: " + call_log[0] + linefeed
+                message = message + "Caller: " + call_log[1] + linefeed
+                message = message + "Status: " + call_log[2] + " by " + call_log[3] + linefeed
+                # message = message + "Last App: " + call_log[3]
+            else:
+                message = ''
 
             last_id = call_log[4]
-
-            send_discord('Missed Call', message)
+            
+            if message != '':
+                if cfg.discord:
+                    send_discord(message, cfg.discord_wh, 'Missed Call', True)
+                if cfg.telegram:
+                    send_telegram(message, cfg.telegram_bot_token, cfg.telegram_chat_id)
+                if cfg.slack:
+                    slack_msg = {'text': message}
+                    send_slack(msg, cfg.slack_wh)
+                if cfg.mattermost:
+                    send_mattermost(message, cfg.mattermost_wh_url, cfg.mattermost_wh_apikey)
+                if cfg.pushover:
+                    send_pushover(message, cfg.pushover_token, cfg.pushover_userkey)
 
         sleep(cfg.check_delay)
 except KeyboardInterrupt:
-    send_discord("Error Message","FreePBX Monitor has been stopped. KeyboardInterrupt")
+    send_discord("FreePBX Monitor has been stopped. KeyboardInterrupt", cfg.discord_wh, "Error Message",True)
 
 except Exception as e:
-    send_discord("Error Message",str(e))
+    send_discord(str(e), cfg.discord_wh, "Error Message",True)

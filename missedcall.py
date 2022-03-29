@@ -2,7 +2,7 @@
 
 # FreePBX Missed Call Monitor
 # Developed by: Jeff Lehman, N8ACL
-# Current Version: 01302022
+# Current Version: 03282022
 # https://github.com/n8acl/freepbx-call-monitor
 
 # Questions? Comments? Suggestions? Contact me one of the following ways:
@@ -55,9 +55,11 @@ if cfg.slack:
 # Define Variables
 
 linefeed = "\r\n"
+voicemail_path = "/var/spool/asterisk/voicemail/default/"
 call_log = []
 last_id = ''
 message = ''
+latest_voicemail = []
 
 #############################
 # Define Functions
@@ -121,10 +123,13 @@ try:
         lastapp AS LastApp,
         uniqueid as ID 
         from cdr 
-        where dst in (
-        """
-
-        cmd = cmd + ",".join(cfg.extensions)
+        where dstchannel like '%"""
+        for x in range(0,len(cfg.extensions)):
+            cmd = cmd + cfg.extensions[x] + "%'"
+            if x < len(cfg.extensions)-1:
+                cmd = cmd + " or dstchannel like '%"
+            else:
+                break
 
         cmd = cmd + """
         )
@@ -166,9 +171,47 @@ try:
                 if cfg.pushover:
                     send_pushover(message, cfg.pushover_token, cfg.pushover_userkey)
 
+        #### Check for new Voicemail
+        if cfg.enable_voicemail_check:
+            for x in range(0,len(cfg.extensions)):
+                list_of_files = glob.glob(voicemail_path + cfg.extensions[x] + "/INBOX/*.txt")
+                if len(list_of_files) == 0:
+                    latest_voicemail.clear()
+                else:
+                    latest_file = max(list_of_files, key=os.path.getctime)
+                    if cfg.extensions[x] + ' - ' + latest_file not in latest_voicemail:
+                        with open(latest_file,'r') as f:
+                            for line in f:
+                                if 'origmailbox' in line:
+                                    on_extension = line[12:len(line)]
+                                if 'callerid' in line:
+                                    callerid = line[9:len(line)]
+                                if 'origdate' in line:
+                                    vm_timestamp = line[13:len(line)]
+                                if 'duration' in line:
+                                    duration = line[9:len(line)]
+                        
+                        message = "TimeStamp: " + vm_timestamp
+                        message = message + "Caller: " + callerid
+                        message = message + "Duration (sec): " + duration + linefeed
+                        message = message + "Total number of VM's on extension: " + str(len(list_of_files))
+
+                        if cfg.discord:
+                            send_discord(message, cfg.discord_wh, 'New Voicemail on ' + on_extension, True)
+                        if cfg.telegram:
+                            send_telegram(message, cfg.telegram_bot_token, cfg.telegram_chat_id)
+                        if cfg.slack:
+                            slack_msg = {'text': message}
+                            send_slack(msg, cfg.slack_wh)
+                        if cfg.mattermost:
+                            send_mattermost(message, cfg.mattermost_wh_url, cfg.mattermost_wh_apikey)
+                        if cfg.pushover:
+                            send_pushover(message, cfg.pushover_token, cfg.pushover_userkey)
+
+                        latest_voicemail.append(cfg.extensions[x] + ' - ' + latest_file)
+
+
         sleep(cfg.check_delay)
-except KeyboardInterrupt:
-    send_discord("FreePBX Monitor has been stopped. KeyboardInterrupt", cfg.discord_wh, "Error Message",True)
 
 except Exception as e:
     send_discord(str(e), cfg.discord_wh, "Error Message",True)

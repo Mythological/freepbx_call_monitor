@@ -1,6 +1,7 @@
 # Miscellanious Settings
 extensions = ['201'] # Extensions to Monitor seperated by commas
 pbx_mysql_password = 'YOUR FREEPBXUSER MYSQL PASSWORD HERE' # freepbxuser MySQL Password
+enable_voicemail_check = True # On = True, Off = False
 check_delay = 60 # The amount of time to delay checking the database, in Seconds
 
 # Configure Discord

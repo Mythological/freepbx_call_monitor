@@ -125,7 +125,7 @@ pip3 install -r requirements.txt
 
 ## Configure the Script
 
-Now that you have your MySQL Password and your Discord Webhook, let's configure the script.
+Now that you have all of your keys/webhooks/what have you, let's configure the script.
 
 You will need to edit the config.py file in the cloned directory. Open this file in your favorite text editor. You should see something similiar:
 
@@ -133,6 +133,7 @@ You will need to edit the config.py file in the cloned directory. Open this file
 # Miscellanious Settings
 extensions = ['201','202'] # Extensions to Monitor seperated by commas
 pbx_mysql_password = 'YOUR FREEPBXUSER MYSQL PASSWORD HERE' # freepbxuser MySQL Password
+enable_voicemail_check = True # On = True, Off = False
 check_delay = 60 # The amount of time to delay checking the database, in Seconds
 
 # Configure Discord
@@ -163,6 +164,7 @@ At the very top, you will see some settings that are general settings for the sc
 - ```extenstions``` this is a list of extensions (seperated by commas and each extension enclosed in single quotes) that you want the script to send notifications for. If you have multiple phones on your PBX in a home phone system, for example, you may only want notifications for the extension on your desk. This list allows you to set which extensions notifications are sent for.
 - ```pbx_mysql_password``` this is where you paste the key that you got from the freepbx.conf file earlier. Replace where it says YOUR FREEPBXUSER MYSQL PASSWORD HERE, leaving the single quotes around the key.
 - ```check_delay``` this is how long of a wait you want the script to check the database. This is set in seconds. Currently, I have mine check it every minute, but you can set this interval to however often you want, however, the longer the interval, the more of a chance you could miss a notification, especailly if you have a busy PBX in the house you are using this on.
+- ```enable_voicemail_check``` This turns on or off the check for new voicemails on the system.
 
 Each section below that contains what is needed for each service to operate. To enable sending to a service, you will need to set the service name from ```False``` to ```True``` and supply the needed keys/webhooks for that service.
 
@@ -189,7 +191,7 @@ Once that is done, hold ```CTRL``` and then tap ```A``` and then ```D``` to disc
 screen -R freepbx_monitor
 ```
 
-And see why it errored or quit. You will know it errored because it will send the error to the Discord Channel. This is useful if you need to contact me for support or want to restart the script.
+And see why it errored or quit. You will know it errored because it will send the error to whatever server you are using for notifications. This is useful if you need to contact me for support or want to restart the script.
 
 When the script is run, it will send whatever the last call that met the critera to your channel. This is so it can set the last ID for future checks and also to let you know that the script is running.
 

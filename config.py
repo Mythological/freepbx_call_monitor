@@ -3,6 +3,7 @@ extensions = ['201'] # Extensions to Monitor seperated by commas
 pbx_mysql_password = 'YOUR FREEPBXUSER MYSQL PASSWORD HERE' # freepbxuser MySQL Password
 enable_voicemail_check = True # On = True, Off = False
 check_delay = 60 # The amount of time to delay checking the database, in Seconds
+voicemail_path = "/var/spool/asterisk/voicemail/default/" # Change this if your voicemail is stored in a different location
 
 # Configure Discord
 discord = False # Enable. On = True, Off = False
@@ -26,3 +27,15 @@ slack_wh = 'YOUR SLACK WEBHOOK URL HERE'
 pushover = False # Enable. On = True, Off = False
 pushover_token = 'YOUR PUSHOVER API KEY TOKEN HERE'
 pushover_userkey = 'YOUR PUSHOVER USER KEY HERE'
+
+
+###################################################
+####### This section for Amateur Radio Operators only
+
+# DAPNET configuration
+# Note that the username and password below would be the same ones you use to log into the DAPNET Website
+dapnet = False # Enable. On = True, Off = False
+dapnet_user = "mycall" # Your DAPNET Username, typically your callsign
+dapnet_pass = "xxxxxxxxxxxxxxxxxxxx" # Your DAPNET Password
+dapnet_send_to = "MYCALL" # The callsign to send the message to for paging
+dapnet_txgroup = "us-all" # Your TX-Group. If in the US us-all should work. Otherwise use a more regional tx-group, ex: us-oh

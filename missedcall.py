@@ -2,7 +2,7 @@
 
 # FreePBX Missed Call Monitor
 # Developed by: Jeff Lehman, N8ACL
-# Current Version: 03282022
+# Current Version: 04022022
 # https://github.com/n8acl/freepbx-call-monitor
 
 # Questions? Comments? Suggestions? Contact me one of the following ways:
@@ -16,9 +16,14 @@
 
 #############################
 # Import Libraries
+import glob
+import os
 import config as cfg
 import subprocess
 import http.client, urllib
+import json
+import requests
+from requests.auth import HTTPBasicAuth
 from time import sleep
 
 if cfg.telegram:
@@ -39,27 +44,16 @@ if cfg.mattermost:
     except ImportError:
         exit('This script requires the matterhook module\nInstall with: pip3 install matterhook')
 
-if cfg.slack:
-    try:
-        import requests
-    except ImportError:
-        exit('This script requires the requests module\nInstall with: pip3 install requests')
-
-    try:
-        import json
-    except ImportError:
-        exit('Error Loading json module.')
-
-
 #############################
 # Define Variables
-
 linefeed = "\r\n"
-voicemail_path = "/var/spool/asterisk/voicemail/default/"
+dapnet_url = 'http://www.hampager.de:8080/calls' # API URL, DO NOT CHANGE
 call_log = []
 last_id = ''
 message = ''
+dapnet_message = ''
 latest_voicemail = []
+voicemail_path = cfg.voicemail_path
 
 #############################
 # Define Functions
@@ -103,18 +97,25 @@ def send_pushover(msg, pushover_token, pushover_userkey):
     connn.getresponse()
 
 def send_slack(msg, wh_url):
-
  
     response = requests.post(
         wh_url, data=json.dumps(msg),
         headers={'Content-Type': 'application/json'}
     )
 
+def send_dapnet(text):
+
+    data = json.dumps({"text": text, "callSignNames": [cfg.dapnet_send_to], "transmitterGroupNames": [cfg.dapnet_txgroup], "emergency": False})
+    response = requests.post(dapnet_url, data=data, auth=HTTPBasicAuth(cfg.dapnet_user,cfg.dapnet_pass)) 
+
+
+
 #############################
 # Main Program
 
 try:
     while True:
+        ####### Check for missed Call
         cmd = """
         echo "SELECT 
         date_format(calldate,'%m/%d/%Y %H:%i') AS Timestamp, 
@@ -132,7 +133,7 @@ try:
                 break
 
         cmd = cmd + """
-        )
+
         ORDER BY calldate DESC
         limit 1"  | mysql -u freepbxuser -p"""
 
@@ -147,14 +148,17 @@ try:
                 message = "TimeStamp: " + call_log[0] + linefeed
                 message = message + "Caller: " + call_log[1] + linefeed
                 message = message + "Status: " + call_log[2] + linefeed
-                # message = message + "Last App: " + call_log[3]
+                dapnet_message = "Missed Call From: " + call_log[1]
+
             elif call_log[2] == 'ANSWERED' and call_log[3] == 'VOICEMAIL':
                 message = "TimeStamp: " + call_log[0] + linefeed
                 message = message + "Caller: " + call_log[1] + linefeed
                 message = message + "Status: " + call_log[2] + " by " + call_log[3] + linefeed
-                # message = message + "Last App: " + call_log[3]
+                dapnet_message = "Missed Call from: " + call_log[1]
+
             else:
                 message = ''
+                dapnet_messsage = ''
 
             last_id = call_log[4]
             
@@ -170,48 +174,58 @@ try:
                     send_mattermost(message, cfg.mattermost_wh_url, cfg.mattermost_wh_apikey)
                 if cfg.pushover:
                     send_pushover(message, cfg.pushover_token, cfg.pushover_userkey)
+                if cfg.dapnet:
+                    send_dapnet(dapnet_message)
+        message = ''
+        dapnet_message = ''
 
         #### Check for new Voicemail
-        if cfg.enable_voicemail_check:
-            for x in range(0,len(cfg.extensions)):
-                list_of_files = glob.glob(voicemail_path + cfg.extensions[x] + "/INBOX/*.txt")
-                if len(list_of_files) == 0:
-                    latest_voicemail.clear()
-                else:
-                    latest_file = max(list_of_files, key=os.path.getctime)
-                    if cfg.extensions[x] + ' - ' + latest_file not in latest_voicemail:
-                        with open(latest_file,'r') as f:
-                            for line in f:
-                                if 'origmailbox' in line:
-                                    on_extension = line[12:len(line)]
-                                if 'callerid' in line:
-                                    callerid = line[9:len(line)]
-                                if 'origdate' in line:
-                                    vm_timestamp = line[13:len(line)]
-                                if 'duration' in line:
-                                    duration = line[9:len(line)]
-                        
-                        message = "TimeStamp: " + vm_timestamp
-                        message = message + "Caller: " + callerid
-                        message = message + "Duration (sec): " + duration + linefeed
-                        message = message + "Total number of VM's on extension: " + str(len(list_of_files))
+        for x in range(0,len(cfg.extensions)):
+            list_of_files = glob.glob(voicemail_path + cfg.extensions[x] + "/INBOX/*.txt")
+            if len(list_of_files) == 0:
+                latest_voicemail.clear()
+            else:
+                latest_file = max(list_of_files, key=os.path.getctime)
+                if cfg.extensions[x] + ' - ' + latest_file not in latest_voicemail:
+                    with open(latest_file,'r') as f:
+                        for line in f:
+                            if 'origmailbox' in line:
+                                on_extension = line[12:len(line)]
+                            if 'callerid' in line:
+                                callerid = line[9:len(line)]
+                            if 'origdate' in line:
+                                vm_timestamp = line[13:len(line)]
+                            if 'duration' in line:
+                                duration = line[9:len(line)]
+                    
+                    message = "TimeStamp: " + vm_timestamp
+                    message = message + "Caller: " + callerid
+                    message = message + "Duration (sec): " + duration + linefeed
+                    message = message + "Total number of VM's on extension: " + str(len(list_of_files))
+                    dapnet_message = "New Voicemail from: " + callerid
 
-                        if cfg.discord:
-                            send_discord(message, cfg.discord_wh, 'New Voicemail on ' + on_extension, True)
-                        if cfg.telegram:
-                            send_telegram(message, cfg.telegram_bot_token, cfg.telegram_chat_id)
-                        if cfg.slack:
-                            slack_msg = {'text': message}
-                            send_slack(msg, cfg.slack_wh)
-                        if cfg.mattermost:
-                            send_mattermost(message, cfg.mattermost_wh_url, cfg.mattermost_wh_apikey)
-                        if cfg.pushover:
-                            send_pushover(message, cfg.pushover_token, cfg.pushover_userkey)
+                if message != '':
+                    if cfg.discord:
+                        send_discord(message, cfg.discord_wh, 'New Voicemail on ' + on_extension, True)
+                    if cfg.telegram:
+                        send_telegram('New Voicemail: ' + message, cfg.telegram_bot_token, cfg.telegram_chat_id)
+                    if cfg.slack:
+                        slack_msg = {'text': 'New Voicemail: ' + message}
+                        send_slack(msg, cfg.slack_wh)
+                    if cfg.mattermost:
+                        send_mattermost('New Voicemail: ' + message, cfg.mattermost_wh_url, cfg.mattermost_wh_apikey)
+                    if cfg.pushover:
+                        send_pushover('New Voicemail: ' + message, cfg.pushover_token, cfg.pushover_userkey)
+                    if cfg.dapnet:
+                        send_dapnet(dapnet_message)
 
-                        latest_voicemail.append(cfg.extensions[x] + ' - ' + latest_file)
-
+                    latest_voicemail.append(cfg.extensions[x] + ' - ' + latest_file)
+        message = ''
+        dapnet_message = ''
 
         sleep(cfg.check_delay)
+# except KeyboardInterrupt:
+#     send_discord("FreePBX Monitor has been stopped. KeyboardInterrupt", cfg.discord_wh, "Error Message",True)
 
 except Exception as e:
     send_discord(str(e), cfg.discord_wh, "Error Message",True)

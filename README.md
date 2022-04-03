@@ -5,7 +5,7 @@ Python based notifications of missed calls to FreePBX/Asterisk to various messag
 
 # Description
 
-This is a Python based script that will pull the last missed call data from the asteriskcdrdb database table on a FreePBX Server and send a notification with the missed call information parsed to one of the supported messaging services.
+This is a Python based script that will pull the last missed call data from the asteriskcdrdb database table on a FreePBX Server as well as check for new voicemails and send a notification with the missed call information parsed to one of the supported messaging services.
 
 This was born out of a need to have an easy way to get notifications of a missed call or a voicemail coming into my home PBX when I was away from home. I mainly use my PBX for the Hamshack Hotline, a VOIP Phone based system strictly for Amateur Radio Operators, so I needed a way to get notification of a missed call, but also use it for a home phone system.
 
@@ -30,6 +30,14 @@ This script will push a notification to the following services:
 - Slack
 - Mattermost
 - Pushover
+- DAPNET (Amatuer Radio Operators Only)
+
+---
+
+## Use Cases
+* Send a notification to your private/family Discord Server
+* Send a notification to your Home Automation bot on Telegram
+* Amateur Radio Operators can send notifications to their DAPNET Pager
 
 ---
 
@@ -67,6 +75,11 @@ If you reach out to me and have an error, please include what error you are gett
 ---
 
 ## Change Log
+* 04/02/2022 - Release 04022022
+  * Fixed issues with the Voicemail notify - Forgot to add all the other services besides Discord.
+  * New for Amateur Radio Operators Only - Added Notifications to the De-centralized Amateur Paging Network (DAPNET).
+  * Updates to README.md
+
 * 03/28/2022 - Release 03282022
   * Refined query to check destination channel versus the destination extension. When using a ring group, this helps to grab the missed call to the extension
   * Added the ability to check for and notify if a new voicemail has been left. Also lets the user know the number of voicemails sitting in the inbox for that extension. This is total number, not just new voicemails.

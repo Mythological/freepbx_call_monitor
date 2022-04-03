@@ -100,6 +100,18 @@ Like Mattermost, Slack uses Webhook URLs to allow incoming data to be posted to 
 
 NOTE: There is a warning from Slack that this integation is legacy and may be discontinued. if that happens, this script will be updated to accomidate this change.
 
+#### DAPNET (Amateur Radio Operators Only)
+
+The De-Centralized Amateur Paging Network (DAPNET) is a paging network similiar to the old one way messaging paging networks from the 1990's. This is a network for Amateur Radio Operators only, so this section will only pertain to them.
+
+For this to work, you will need to have an account setup with DAPNET to be able to send pages. Configuring the receiving end is up to the user and outside the scope of this setup document.
+
+For this you will need the following:
+* DAPNET Username (Typically your callsign)
+* DAPNET Password
+* The Callsign to send the page to (your callsign probably)
+* DAPNET TX-Group - Typically this would be your local regional group for example us-oh
+
 ---
 
 ### Installing the Script
@@ -135,6 +147,7 @@ extensions = ['201','202'] # Extensions to Monitor seperated by commas
 pbx_mysql_password = 'YOUR FREEPBXUSER MYSQL PASSWORD HERE' # freepbxuser MySQL Password
 enable_voicemail_check = True # On = True, Off = False
 check_delay = 60 # The amount of time to delay checking the database, in Seconds
+voicemail_path = "/var/spool/asterisk/voicemail/default/" # Change this if your voicemail is stored in a different location
 
 # Configure Discord
 discord = False # Enable. On = True, Off = False
@@ -158,6 +171,18 @@ slack_wh = 'YOUR SLACK WEBHOOK URL HERE'
 pushover = False # Enable. On = True, Off = False
 pushover_token = 'YOUR PUSHOVER API KEY TOKEN HERE'
 pushover_userkey = 'YOUR PUSHOVER USER KEY HERE'
+
+###################################################
+####### This section for Amateur Radio Operators only
+
+# DAPNET configuration
+# Note that the username and password below would be the same ones you use to log into the DAPNET Website
+dapnet = False # Enable. On = True, Off = False
+dapnet_user = "mycall" # Your DAPNET Username, typically your callsign
+dapnet_pass = "xxxxxxxxxxxxxxxxxxxx" # Your DAPNET Password
+dapnet_send_to = "MYCALL" # The callsign to send the message to for paging
+dapnet_txgroup = "us-all" # Your TX-Group. If in the US us-all should work. Otherwise use a more regional tx-group, ex: us-oh
+
 ```
 At the very top, you will see some settings that are general settings for the script. These variables are:
 
@@ -165,6 +190,7 @@ At the very top, you will see some settings that are general settings for the sc
 - ```pbx_mysql_password``` this is where you paste the key that you got from the freepbx.conf file earlier. Replace where it says YOUR FREEPBXUSER MYSQL PASSWORD HERE, leaving the single quotes around the key.
 - ```check_delay``` this is how long of a wait you want the script to check the database. This is set in seconds. Currently, I have mine check it every minute, but you can set this interval to however often you want, however, the longer the interval, the more of a chance you could miss a notification, especailly if you have a busy PBX in the house you are using this on.
 - ```enable_voicemail_check``` This turns on or off the check for new voicemails on the system.
+- ```voicemail_path``` This is the path to your voicemail folder on your system. This should be pretty standard, but if it's in a different location, you will need to change this to the correct place.
 
 Each section below that contains what is needed for each service to operate. To enable sending to a service, you will need to set the service name from ```False``` to ```True``` and supply the needed keys/webhooks for that service.
 

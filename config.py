@@ -11,7 +11,7 @@ discord_wh = "YOUR DISCORD WEBHOOK URL HERE"
 
 # Configure Telegram
 telegram = False # Enable. On = True, Off = False
-telgram_bot_token = 'YOUR TELEGRAM BOT TOKEN HERE'
+telegram_bot_token = 'YOUR TELEGRAM BOT TOKEN HERE'
 telegram_chat_id = 'YOUR TELEGRAM CHAT ID HERE'
 
 # Configure Mattermost
